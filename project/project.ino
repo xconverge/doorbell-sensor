@@ -1,13 +1,17 @@
 #include "secrets.h"
 
+#include <EmonLib.h>
 #include <ESP8266WiFi.h>
 #include <MQTT.h> // https://github.com/256dpi/arduino-mqtt
 
+EnergyMonitor energyMonitor;
 WiFiClient net;
 MQTTClient mqttClient;
 
 bool pressed = false;
 bool released = true;
+
+float Icalibration = 30.50;
 
 void connect()
 {
@@ -32,6 +36,8 @@ void connect()
   }
 
   Serial.println("Connected to MQTT broker.");
+
+  energyMonitor.current(A0, Icalibration);
 }
 
 void setup()
@@ -56,30 +62,22 @@ void setup()
 
 void loop()
 {
-  delay(10);
-  mqttClient.loop();
+  // Calculate Irms only
+  double Irms = energyMonitor.calcIrms(1480);
 
-  if (!mqttClient.connected())
+  // Debug print
+  if (false)
   {
-    connect();
+    Serial.println(Irms);
   }
 
+  // Tested empirically
+  const double threshold = 0.07;
   const bool wasPressed = pressed;
   const bool wasReleased = released;
 
-  // Read the adc sensor value
-  int sensorValue = analogRead(A0);
-
-  if (true)
-  {
-    Serial.println(sensorValue);
-  }
-
-  // Analog read goes from 0 - 1023
-  int threshold = 10;
-
   // Update pressed and released states
-  if (sensorValue < threshold)
+  if (Irms < threshold)
   {
     pressed = false;
     released = true;
@@ -93,12 +91,15 @@ void loop()
   if (pressed && !wasPressed)
   {
     Serial.println("Press Detected");
-    mqttClient.publish("doorbell/pressed", "pressed");
-  }
 
-  if (released && !wasReleased)
-  {
-    Serial.println("Release Detected");
-    mqttClient.publish("doorbell/released", "released");
+    mqttClient.loop();
+    if (!mqttClient.connected())
+    {
+      connect();
+    }
+
+    Serial.println("Sending pressed message");
+    mqttClient.publish("doorbell/pressed", "ON");
+    delay(10);
   }
 }

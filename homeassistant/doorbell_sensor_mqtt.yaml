@@ -1,4 +1,6 @@
 binary_sensor:
   - platform: mqtt
-    name: Doorbell Pressed
+    name: doorbell_pressed
     state_topic: "doorbell/pressed"
+    off_delay: 1
+    force_update: true
