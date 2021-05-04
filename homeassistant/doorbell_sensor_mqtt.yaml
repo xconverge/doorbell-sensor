@@ -1,0 +1,4 @@
+binary_sensor:
+  - platform: mqtt
+    name: Doorbell Pressed
+    state_topic: "doorbell/pressed"
